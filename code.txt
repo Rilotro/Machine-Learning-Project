@@ -1,0 +1,198 @@
+import os
+import cv2
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn import metrics
+import matplotlib.pyplot as plt
+
+def load_train_images_from_folder(folder, target_shape=None):
+    images = []
+    labels = []
+    for subfolder in os.listdir(folder):
+        subfolder_path = os.path.join(folder, subfolder)
+        if os.path.isdir(subfolder_path):
+            for filename in os.listdir(subfolder_path):
+                if filename.endswith('.jpeg'):
+                    img = cv2.imread(os.path.join(subfolder_path, filename))
+                    if img is not None:
+                        # Resize the image to a consistent shape (e.g., 100x100)
+                        if target_shape is not None:
+                            img = cv2.resize(img, target_shape)
+                        images.append(img)
+                        labels.append(subfolder)
+                        print('Labels \n', labels)
+                    else:
+                        print(f"Warning: Unable to load {filename}")
+    return images, labels
+
+def load_test_images_from_folder(folder, target_shape=None):
+    test_images = []
+    test_labels = []
+    for subfolder in os.listdir(folder):
+        subfolder_path = os.path.join(folder, subfolder)
+        if os.path.isdir(subfolder_path):
+            for filename in os.listdir(subfolder_path):
+                if filename.endswith('.jpeg'):
+                    img = cv2.imread(os.path.join(subfolder_path, filename))
+                    if img is not None:
+                        # Resize the image to a consistent shape (e.g., 100x100)
+                        if target_shape is not None:
+                            img = cv2.resize(img, target_shape)
+                        test_images.append(img)
+                        test_labels.append(subfolder)
+                        print('Labels \n', labels)
+                    else:
+                        print(f"Warning: Unable to load {filename}")
+    return test_images, test_labels
+
+data_folder = './fire_train' # Folder with training data
+test_folder = './fire_test' # Folder with test data
+
+images, labels = load_train_images_from_folder(data_folder, target_shape=(200, 200))
+
+image_data = [cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).flatten() for image in images]
+
+# Convert the list of 1D arrays to a 2D numpy array
+image_data = np.array(image_data)
+
+scaler = StandardScaler()
+scaled_data = scaler.fit_transform(image_data)
+
+
+knn = KNeighborsClassifier(n_neighbors=2)
+knn.fit(scaled_data, labels)
+
+predictions = []
+for i, train_image in enumerate(images):
+    train_image_data = cv2.cvtColor(train_image, cv2.COLOR_BGR2GRAY).flatten()
+    train_image_data = np.array(train_image_data).reshape(1, -1) # Reshape for a single sample
+    scaled_train_data = scaler.transform(train_image_data)
+    train_prediction = knn.predict(scaled_train_data) # Predict classes
+
+    predictions.append(train_prediction)
+
+    if train_prediction[0] == "no_fire":
+        print(f"Train Image {i + 1} - ==NO FIRE==")
+    else:
+        print(f"Train Image {i + 1} - ==FIRE==")
+
+    # Visualize the test image with its predicted cluster
+    #plt.figure()
+    #plt.imshow(cv2.cvtColor(train_image, cv2.COLOR_BGR2RGB))
+    #if train_prediction[0] == "no_fire":
+     #   plt.title(f"Train Image {i + 1}\n Predicted Label - ==NO FIRE==\n True Label - =={labels[i]}==")
+    #else:
+     #   plt.title(f"Train Image {i + 1}\n Predicted Label - ==FIRE==\n True Label - =={labels[i]}==")
+    #plt.axis('off')
+    #plt.show()
+
+TP = 0
+TN = 0
+FP = 0
+FN = 0
+Fpr = 0
+Tpr = 0
+for i in range(len(labels)):
+    if(labels[i] == predictions[i]):
+        if(predictions[i] == "fire"):
+            TP += 1
+        else:
+            TN += 1
+    else:
+        if(predictions[i] == "fire"):
+            FP += 1
+        else:
+            FN += 1
+
+print("Rezultatele antrenarii:")
+print(f"True Positive: {TP}")
+print(f"True Negative: {TN}")
+print(f"False Positive: {FP}")
+print(f"False Negative: {FN}")
+print("")
+print(f"Acuratetea: {(TP+TN)/(TP + TN + FP + FN)}")
+print(f"Precizia: {TP/(TP + FP)}")
+P = TP/(TP + FP)
+print(f"Sensibilitatea: {TP/(TP + FN)}")
+S = TP/(TP + FN)
+print(f"Specifitatea: {TN/(TN + FP)}")
+print(f"Scor F1: {2*(S*P)/(S+P)}")
+
+test_images, test_labels = load_test_images_from_folder(test_folder, target_shape=(200, 200))
+
+print('# TEST files:', len(test_images))
+
+predictions = []
+for i, test_image in enumerate(test_images):
+    test_image_data = cv2.cvtColor(test_image, cv2.COLOR_BGR2GRAY).flatten()
+    test_image_data = np.array(test_image_data).reshape(1, -1) # Reshape for a single sample
+    scaled_test_data = scaler.transform(test_image_data)
+    test_prediction = knn.predict(scaled_test_data) # Predict classes
+
+    predictions.append(test_prediction)
+
+    if test_prediction[0] == "no_fire":
+        print(f"Test Image {i + 1} - ==NO FIRE==")
+    else:
+        print(f"Test Image {i + 1} - ==FIRE==")
+    
+    # Visualize the test image with its predicted cluster
+    #plt.figure()
+    #plt.imshow(cv2.cvtColor(test_image, cv2.COLOR_BGR2RGB))
+    #if test_prediction[0] == "no_fire":
+     #   plt.title(f"Test Image {i + 1}\n Predicted Label - ==NO FIRE==\n True Label - =={test_labels[i]}==")
+    #else:
+     #   plt.title(f"Test Image {i + 1}\n Predicted Label - ==FIRE==\n True Label - =={test_labels[i]}==")
+    #plt.axis('off')
+    #plt.show()
+
+
+TP = 0
+TN = 0
+FP = 0
+FN = 0
+Fpr = 0
+Tpr = 0
+for i in range(len(test_labels)):
+    if(test_labels[i] == predictions[i]):
+        if(predictions[i] == "fire"):
+            TP += 1
+            predictions[i] = 1
+            test_labels[i] = 1
+        else:
+            TN += 1
+            predictions[i] = 0
+            test_labels[i] = 0
+    else:
+        if(predictions[i] == "fire"):
+            FP += 1
+            predictions[i] = 1
+            test_labels[i] = 0
+        else:
+            FN += 1
+            predictions[i] = 0
+            test_labels[i] = 1
+
+print("Rezultatele testarii")
+print(f"True Positive: {TP}")
+print(f"True Negative: {TN}")
+print(f"False Positive: {FP}")
+print(f"False Negative: {FN}")
+print("")
+print(f"Acuratetea: {(TP+TN)/(TP + TN + FP + FN)}")
+print(f"Precizia: {TP/(TP + FP)}")
+P = TP/(TP + FP)
+print(f"Sensibilitatea: {TP/(TP + FN)}")
+S = TP/(TP + FN)
+print(f"Specifitatea: {TN/(TN + FP)}")
+print(f"Scor F1: {2*(S*P)/(S+P)}")
+
+Fpr, Tpr, _ = metrics.roc_curve(test_labels, predictions)
+auc = metrics.roc_auc_score(test_labels, predictions)
+
+plt.plot(Fpr, Tpr, label="AUC="+str(auc))
+plt.ylabel('True Positive Rate')
+plt.xlabel('False Positive Rate')
+plt.legend(loc=4)
+plt.show()
